@@ -1,0 +1,42 @@
+name: 🔄 Sync all forks
+
+on:
+  schedule:
+    - cron: '0 5 * * *'     # daily at 05:00 UTC
+  workflow_dispatch:       # manual trigger
+
+jobs:
+  list-and-dispatch:
+    runs-on: ubuntu-latest
+    permissions:
+      actions: read
+      contents: read
+      repository-dispatch: write
+
+    steps:
+      - name: List organization forks
+        id: forks
+        uses: peter-evans/repository-dispatch@v2
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          repository: le-fork/.github
+          event-type: list-forks
+          client-payload: |
+            {"org":"le-fork"}
+
+  dispatch-to-fork:
+    needs: list-and-dispatch
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        fork: ${{ fromJson(needs.list-and-dispatch.outputs.forks) }}
+    permissions:
+      repository-dispatch: write
+
+    steps:
+      - name: Trigger sync workflow in fork
+        uses: peter-evans/repository-dispatch@v2
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          repository: ${{ matrix.fork }}
+          event-type: upstream-sync
