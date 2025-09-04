@@ -1,4 +1,5 @@
-name: 👋 Hello org
+# .github/workflows/hello-org.yml
+name: Hello org
 on: workflow_dispatch
 jobs:
   test:
