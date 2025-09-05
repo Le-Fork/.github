@@ -2,30 +2,34 @@ name: 🔄 Sync all forks
 
 on:
   schedule:
-    - cron: '0 5 * * *'       # daily at 05:00 UTC
-  workflow_dispatch:         # manual trigger
+    - cron: '0 5 * * *'
+  workflow_dispatch:
 
 jobs:
-  list-and-dispatch:
+  list-forks:
     runs-on: ubuntu-latest
-    permissions:
-      contents: read
-      repository_dispatch: write
-
-    strategy:
-      matrix:
-        repo: ${{ fromJson(steps.list_forks.outputs.repositories) }}
-
+    outputs:
+      repos: ${{ steps.list.outputs.repositories }}
     steps:
-      - name: List all forks in the org
-        id: list_forks
+      - name: List all forks
+        id: list
         uses: peter-evans/list-repositories@v2
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
           org: le-fork
           type: forks
 
-      - name: Dispatch sync event to each fork
+  dispatch-sync:
+    needs: list-forks
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      actions: write
+    strategy:
+      matrix:
+        repo: ${{ fromJson(needs.list-forks.outputs.repos) }}
+    steps:
+      - name: Dispatch to each fork
         uses: peter-evans/repository-dispatch@v2
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
