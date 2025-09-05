@@ -1,8 +1,2 @@
 # .github/workflows/hello-org.yml
-name: Hello org
-on: workflow_dispatch
-jobs:
-  test:
-    runs-on: ubuntu-latest
-    steps:
-      - run: echo "Org workflows are live!"
+
