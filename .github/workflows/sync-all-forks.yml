@@ -1,4 +1,5 @@
 name: 🔄 Sync all forks
+
 on:
   schedule:
     - cron: '0 5 * * *'       # daily at 05:00 UTC
@@ -9,7 +10,11 @@ jobs:
     runs-on: ubuntu-latest
     permissions:
       contents: read
-      repository-dispatch: write
+      repository_dispatch: write
+
+    strategy:
+      matrix:
+        repo: ${{ fromJson(steps.list_forks.outputs.repositories) }}
 
     steps:
       - name: List all forks in the org
@@ -25,11 +30,5 @@ jobs:
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
           event-type: upstream-sync
-          client-payload: |
-            {"upstream": "kubernetes/kubernetes"}
-        # Loop over the array of forks
-        strategy:
-          matrix:
-            repo: ${{ fromJson(steps.list_forks.outputs.repositories) }}
-        with:
+          client-payload: '{"upstream":"cncf/foundation"}'
           repository: ${{ matrix.repo }}
