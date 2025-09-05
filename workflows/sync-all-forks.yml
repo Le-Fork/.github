@@ -1,10 +1,3 @@
-name: 🔄 Sync all forks
-
-on:
-  schedule:
-    - cron: '0 5 * * *'
-  workflow_dispatch:
-
 permissions:
   contents: read
   actions: write
@@ -14,33 +7,19 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      - name: List all forks in the org
+      - name: List all forks
         id: list_forks
         uses: actions/github-script@v6
         with:
           github-token: ${{ secrets.GITHUB_TOKEN }}
           script: |
-            // Fetch all pages of forks for the org
-            const org = 'le-fork';
-            let page = 1;
-            const forks = [];
-            while (true) {
-              const response = await github.rest.repos.listForOrg({
-                org,
-                type: 'forks',
-                per_page: 100,
-                page
-              });
-              forks.push(...response.data.map(r => r.full_name));
-              if (response.data.length < 100) break;
-              page++;
-            }
-            core.setOutput('forks', JSON.stringify(forks));
+            // same listing logic
+            core.setOutput('forks', JSON.stringify(forks))
 
       - name: Dispatch sync event to each fork
         uses: actions/github-script@v6
         with:
-          github-token: ${{ secrets.GITHUB_TOKEN }}
+          github-token: ${{ secrets.DISPATCH_TOKEN }}
           script: |
             const forks = JSON.parse(process.env.FORKS);
             for (const repo of forks) {
