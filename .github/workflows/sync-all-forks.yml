@@ -5,34 +5,51 @@ on:
     - cron: '0 5 * * *'
   workflow_dispatch:
 
-jobs:
-  list-forks:
-    runs-on: ubuntu-latest
-    outputs:
-      repos: ${{ steps.list.outputs.repositories }}
-    steps:
-      - name: List all forks
-        id: list
-        uses: peter-evans/list-repositories@v2
-        with:
-          token: ${{ secrets.GITHUB_TOKEN }}
-          org: le-fork
-          type: forks
+permissions:
+  contents: read
+  actions: write
 
-  dispatch-sync:
-    needs: list-forks
+jobs:
+  list-and-dispatch:
     runs-on: ubuntu-latest
-    permissions:
-      contents: read
-      actions: write
-    strategy:
-      matrix:
-        repo: ${{ fromJson(needs.list-forks.outputs.repos) }}
+
     steps:
-      - name: Dispatch to each fork
-        uses: peter-evans/repository-dispatch@v2
+      - name: List all forks in the org
+        id: list_forks
+        uses: actions/github-script@v6
         with:
-          token: ${{ secrets.GITHUB_TOKEN }}
-          event-type: upstream-sync
-          client-payload: '{"upstream":"cncf/foundation"}'
-          repository: ${{ matrix.repo }}
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          script: |
+            // Fetch all pages of forks for the org
+            const org = 'le-fork';
+            let page = 1;
+            const forks = [];
+            while (true) {
+              const response = await github.rest.repos.listForOrg({
+                org,
+                type: 'forks',
+                per_page: 100,
+                page
+              });
+              forks.push(...response.data.map(r => r.full_name));
+              if (response.data.length < 100) break;
+              page++;
+            }
+            core.setOutput('forks', JSON.stringify(forks));
+
+      - name: Dispatch sync event to each fork
+        uses: actions/github-script@v6
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          script: |
+            const forks = JSON.parse(process.env.FORKS);
+            for (const repo of forks) {
+              await github.rest.repos.createDispatchEvent({
+                owner: repo.split('/')[0],
+                repo: repo.split('/')[1],
+                event_type: 'upstream-sync',
+                client_payload: { upstream: 'cncf/foundation' }
+              });
+            }
+        env:
+          FORKS: ${{ steps.list_forks.outputs.forks }}
